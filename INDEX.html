@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>철도궤도 캔트(Cant) 측정기 v1.5</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --stable-green: #4ade80;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --base-font: 130%;
+        }
+
+        html {
+            font-size: var(--base-font);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 16px;
+            max-width: 640px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        #landscape-guard {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.98);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+        }
+
+        @media screen and (orientation: landscape) and (max-height: 540px) {
+            #landscape-guard {
+                display: flex;
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .header h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background-color: var(--accent);
+            color: #0f172a;
+            transition: background-color 0.15s ease, transform 0.08s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background-color: #334155;
+            color: var(--text-main);
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: #0f172a;
+        }
+
+        .btn-success {
+            background-color: #22c55e;
+            color: #052e16;
+        }
+
+        .btn-sm {
+            padding: 9px 12px;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        .os-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .os-card {
+            background: #0f172a;
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 18px 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .os-card.selected {
+            border-color: var(--accent);
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent);
+        }
+
+        .tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .tab-btn {
+            padding: 12px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: #0f172a;
+            border-color: var(--accent);
+        }
+
+        .cant-box {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 20px 14px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .cant-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .cant-value {
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.5px;
+        }
+
+        .cant-value.stable {
+            color: var(--stable-green);
+        }
+
+        .cant-unit {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .status-pill.stable {
+            background: rgba(74, 222, 128, 0.16);
+            color: var(--stable-green);
+        }
+
+        .sub-info {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .guide-box {
+            background: #0f172a;
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.86rem;
+            color: #e2e8f0;
+            margin-bottom: 12px;
+        }
+
+        .guide-box li {
+            margin-left: 16px;
+            margin-bottom: 6px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0f172a;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 0.88rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0 14px;
+            accent-color: var(--accent);
+            height: 8px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            background: var(--danger);
+        }
+
+        .delete-bg {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 18px;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .history-item {
+            position: relative;
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.15s ease;
+            touch-action: pan-y;
+        }
+
+        .history-meta {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .history-cant {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--stable-green);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .notice {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            font-size: 0.84rem;
+            color: #e0f2fe;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="landscape-guard">
+        <div style="font-size: 2.2rem; margin-bottom: 10px;">📱↕️</div>
+        <h2 style="font-size: 1.25rem; margin-bottom: 8px;">세로 모드 전용 화면</h2>
+        <p style="font-size: 0.92rem; color: #cbd5e1; max-width: 320px;">
+            정확한 센서 축 기준 및 캔트 측정을 위해 스마트폰을 세로 방향으로 유지해 주세요.
+        </p>
+    </div>
+
+    <div class="header">
+        <h1>철도궤도 캔트(Cant) 측정기 v1.5</h1>
+        <p>수평계 1,800mm · 표준궤 1,435mm 환산 (스마트폰 高 + / 低 -)</p>
+    </div>
+
+    <div id="setup-screen" class="card">
+        <h2 style="font-size: 1.05rem; margin-bottom: 6px;">1. 스마트폰 기종 선택</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+            사용 중인 기기를 선택한 뒤 센서 권한을 허용해 주세요. 화면은 세로 모드로 고정됩니다.
+        </p>
+
+        <div class="os-grid">
+            <div id="os-android" class="os-card" onclick="selectOS('android')">
+                🤖 안드로이드<br>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">Android</span>
+            </div>
+            <div id="os-ios" class="os-card" onclick="selectOS('ios')">
+                🍏 아이폰<br>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">iOS (Safari)</span>
+            </div>
+        </div>
+
+        <button id="btn-start" class="btn" onclick="requestSensorAccess()">센서 권한 허용 및 시작</button>
+        <div id="setup-msg" class="notice hidden"></div>
+    </div>
+
+    <div id="app-screen" class="hidden">
+        <div class="tabs">
+            <button id="tab-measure" class="tab-btn active" onclick="switchTab('measure')">캔트측정</button>
+            <button id="tab-zero" class="tab-btn" onclick="switchTab('zero')">영점조정</button>
+            <button id="tab-scale" class="tab-btn" onclick="switchTab('scale')">감도조정</button>
+        </div>
+
+        <div id="panel-measure" class="card">
+            <div class="cant-box">
+                <div class="cant-label">실시간 캔트 (1,435mm 궤간 기준)</div>
+                <div>
+                    <span id="cant-display" class="cant-value">0.0</span>
+                    <span class="cant-unit">mm</span>
+                </div>
+                <div id="stability-badge" class="status-pill">안정화 대기 중</div>
+                <div id="sensor-debug" class="sub-info">
+                    현재 sin(θ) 보정값: +0.00000 | 배율: 1.00 | OS: -
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="saveCantRecord()">현재 캔트값 저장</button>
+            <div id="measure-msg" class="notice hidden"></div>
+        </div>
+
+        <div id="panel-zero" class="card hidden">
+            <h2 style="font-size: 1.05rem; margin-bottom: 8px;">기포식 수평기 기준 영점조정</h2>
+            <ul class="guide-box">
+                <li>1,800mm 수평계 끝단에 스마트폰을 거치합니다(화면 하늘 방향, 긴 쪽이 수평계 축과 일치, 충전단자 방향이 끝단 향함).</li>
+                <li>수평계에 달린 <strong>기포식 수평기</strong>의 기포를 정중앙에 맞춥니다.</li>
+                <li>수치가 안정된 뒤 <strong>현재 값을 영점(0.0mm)으로 설정</strong> 버튼을 누릅니다.</li>
+            </ul>
+
+            <div class="metric-row">
+                <span>현재 영점 기준값 sin(θ₀)</span>
+                <strong id="zero-offset-display">+0.00000</strong>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                <button class="btn" onclick="setZeroCalibration()">현재 값을 영점(0.0mm)으로 설정</button>
+                <button class="btn btn-secondary" onclick="resetZeroCalibration()">영점 초기화</button>
+            </div>
+            <div id="zero-msg" class="notice hidden"></div>
+        </div>
+
+        <div id="panel-scale" class="card hidden">
+            <h2 style="font-size: 1.05rem; margin-bottom: 8px;">20mm 블록 기준 감도(배율) 조정</h2>
+            <ul class="guide-box">
+                <li>1,800mm 수평계의 <strong>스마트폰 쪽 끝단</strong> 아래에 <strong>20mm 블록</strong>을 놓으면 기울기 $\sin	heta = 20/1800$이 발생하며, 1,435mm 궤간 환산 이론값은 <strong>+15.9mm (+15.94mm)</strong>입니다.</li>
+                <li>스마트폰 쪽 레일이 높으면 <strong>+</strong>, 낮으면 <strong>-</strong>가 표시됩니다.</li>
+                <li>반대편(스마트폰 반대쪽)에 20mm 블록을 놓으면 부호가 반전된 <strong>-15.9mm</strong> 부근이 나와야 정상입니다. (역방향 측정 시 -42처럼 과도하게 튀던 현상을 보정·점검할 수 있습니다.)</li>
+            </ul>
+
+            <div class="metric-row">
+                <span>현재 감도 배율 (ScaleFactor)</span>
+                <strong id="scale-value-display">1.00</strong>
+            </div>
+
+            <input id="scale-slider" type="range" min="0.20" max="3.00" step="0.01" value="1.00" oninput="onScaleSliderChange(this.value)">
+
+            <button class="btn btn-warning" style="margin-bottom: 10px;" onclick="autoCalibrate20mm()">
+                스마트폰 쪽 20mm 블록 기준 자동 보정 (+15.9mm)
+            </button>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="captureCheck('pos')">정방향(+20mm) 기록</button>
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="captureCheck('neg')">반대편(-20mm) 기록</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="flipSignPolarity()">부호 반전 (+/-)</button>
+                <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="resetScaleDefault()">배율 1.00 초기화</button>
+            </div>
+
+            <div id="scale-msg" class="notice hidden"></div>
+        </div>
+
+        <div class="card">
+            <div class="history-header">
+                <h2 style="font-size: 1.05rem;">저장된 캔트값 리스트</h2>
+                <button class="btn btn-secondary btn-sm" onclick="clearAllRecords()">전체 삭제</button>
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;">
+                최신 저장 항목이 맨 위에 표시됩니다. 항목을 <strong>왼쪽으로 스와이프</strong>하면 삭제됩니다.
+            </p>
+            <div id="history-list" class="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const LEVEL_LENGTH_MM = 1800.0;
+        const RAIL_GAUGE_MM = 1435.0;
+        const BLOCK_HEIGHT_MM = 20.0;
+        const TARGET_CANT_MM = RAIL_GAUGE_MM * (BLOCK_HEIGHT_MM / LEVEL_LENGTH_MM);
+
+        let selectedOS = null;
+        let sensorListenerAttached = false;
+
+        let signPolarity = -1;
+        let zeroSinTheta = 0.0;
+        let scaleFactor = 1.00;
+
+        let rawSinTheta = 0.0;
+        let calibratedSinTheta = 0.0;
+        let instantCantMm = 0.0;
+
+        let emaFast = null;
+        let emaSlow = null;
+        const EMA_FAST_ALPHA = 0.22;
+        const EMA_SLOW_ALPHA = 0.09;
+        let filteredCantMm = 0.0;
+
+        const recentSamples = [];
+        const SAMPLE_WINDOW = 14;
+        const STABILITY_SPREAD_MM = 0.25;
+        let isStable = false;
+
+        let checkPositiveMm = null;
+        let checkNegativeMm = null;
+
+        const STORAGE_KEY = "railway_cant_records_v15";
+        const PREF_KEY = "railway_cant_prefs_v15";
+        let records = [];
+
+        function lockPortrait() {
+            try {
+                if (screen.orientation && typeof screen.orientation.lock === "function") {
+                    screen.orientation.lock("portrait").catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        function loadPreferences() {
+            try {
+                const savedPref = JSON.parse(localStorage.getItem(PREF_KEY) || "null");
+                if (savedPref) {
+                    if (typeof savedPref.zeroSinTheta === "number") zeroSinTheta = savedPref.zeroSinTheta;
+                    if (typeof savedPref.scaleFactor === "number") scaleFactor = savedPref.scaleFactor;
+                    if (typeof savedPref.signPolarity === "number") signPolarity = savedPref.signPolarity;
+                }
+            } catch (e) {}
+
+            try {
+                records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+                if (!Array.isArray(records)) records = [];
+            } catch (e) {
+                records = [];
+            }
+
+            syncScaleUI();
+            updateZeroUI();
+            renderRecords();
+        }
+
+        function savePreferences() {
+            localStorage.setItem(PREF_KEY, JSON.stringify({
+                zeroSinTheta,
+                scaleFactor,
+                signPolarity
+            }));
+        }
+
+        function selectOS(os) {
+            lockPortrait();
+            selectedOS = os;
+            document.getElementById("os-android").classList.toggle("selected", os === "android");
+            document.getElementById("os-ios").classList.toggle("selected", os === "ios");
+            showNotice("setup-msg", os === "ios"
+                ? "아이폰(iOS) 선택됨: 시작 시 동작 및 방향 센서 권한 팝업에서 '허용'을 눌러주세요."
+                : "안드로이드 선택됨: 시작 버튼을 눌러 센서 측정을 시작하세요.");
+        }
+
+        async function requestSensorAccess() {
+            lockPortrait();
+            if (!selectedOS) {
+                selectedOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios" : "android";
+                document.getElementById("os-" + selectedOS).classList.add("selected");
+            }
+
+            if (selectedOS === "ios" && typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+                try {
+                    const permissionState = await DeviceMotionEvent.requestPermission();
+                    if (permissionState !== "granted") {
+                        showNotice("setup-msg", "iOS 센서 권한이 거부되었습니다. Safari 설정에서 동작 및 화면 방향 접근을 허용해 주세요.");
+                        return;
+                    }
+                } catch (err) {
+                    showNotice("setup-msg", "iOS 센서 권한 요청 중 오류가 발생했습니다: " + err.message);
+                    return;
+                }
+            }
+
+            if (selectedOS === "ios" && typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+                try {
+                    await DeviceOrientationEvent.requestPermission();
+                } catch (err) {}
+            }
+
+            enterAppScreen();
+        }
+
+        function enterAppScreen() {
+            lockPortrait();
+            document.getElementById("setup-screen").classList.add("hidden");
+            document.getElementById("app-screen").classList.remove("hidden");
+            attachSensorListeners();
+            updateCantUI();
+        }
+
+        function attachSensorListeners() {
+            if (sensorListenerAttached) return;
+            window.addEventListener("devicemotion", handleDeviceMotion, { passive: true });
+            window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true });
+            sensorListenerAttached = true;
+        }
+
+        function handleDeviceMotion(event) {
+            const acc = event.accelerationIncludingGravity;
+            if (!acc) return;
+
+            const ax = typeof acc.x === "number" ? acc.x : 0;
+            const ay = typeof acc.y === "number" ? acc.y : 0;
+            const az = typeof acc.z === "number" ? acc.z : 0;
+            const gMag = Math.sqrt(ax * ax + ay * ay + az * az);
+
+            if (gMag > 0.1) {
+                rawSinTheta = signPolarity * (ay / gMag);
+                processSinTheta(rawSinTheta);
+            }
+        }
+
+        function handleDeviceOrientation(event) {
+            if (event.accelerationIncludingGravity) return;
+            if (typeof event.gamma === "number") {
+                const rad = event.gamma * (Math.PI / 180);
+                rawSinTheta = signPolarity * Math.sin(rad);
+                processSinTheta(rawSinTheta);
+            }
+        }
+
+        function processSinTheta(sinVal) {
+            calibratedSinTheta = sinVal - zeroSinTheta;
+            instantCantMm = RAIL_GAUGE_MM * calibratedSinTheta * scaleFactor;
+
+            if (emaFast === null || emaSlow === null) {
+                emaFast = instantCantMm;
+                emaSlow = instantCantMm;
+            } else {
+                emaFast = EMA_FAST_ALPHA * instantCantMm + (1 - EMA_FAST_ALPHA) * emaFast;
+                emaSlow = EMA_SLOW_ALPHA * instantCantMm + (1 - EMA_SLOW_ALPHA) * emaSlow;
+            }
+
+            filteredCantMm = 0.5 * emaFast + 0.5 * emaSlow;
+
+            recentSamples.push(filteredCantMm);
+            if (recentSamples.length > SAMPLE_WINDOW) {
+                recentSamples.shift();
+            }
+
+            if (recentSamples.length >= 6) {
+                const minV = Math.min(...recentSamples);
+                const maxV = Math.max(...recentSamples);
+                isStable = (maxV - minV) <= STABILITY_SPREAD_MM;
+            } else {
+                isStable = false;
+            }
+
+            updateCantUI();
+        }
+
+        function formatSignedTenths(num) {
+            const rounded = Number(num).toFixed(1);
+            const numeric = parseFloat(rounded);
+            if (numeric > 0) return "+" + rounded;
+            if (numeric === 0) return "0.0";
+            return rounded;
+        }
+
+        function formatSignedFixed(num, digits) {
+            const val = Number(num).toFixed(digits);
+            return parseFloat(val) > 0 ? "+" + val : val;
+        }
+
+        function updateCantUI() {
+            const valEl = document.getElementById("cant-display");
+            const badgeEl = document.getElementById("stability-badge");
+            const debugEl = document.getElementById("sensor-debug");
+
+            valEl.textContent = formatSignedTenths(filteredCantMm);
+            valEl.classList.toggle("stable", isStable);
+
+            if (isStable) {
+                badgeEl.textContent = "● 측정값 안정됨";
+                badgeEl.className = "status-pill stable";
+            } else {
+                badgeEl.textContent = "○ 값 안정화 중...";
+                badgeEl.className = "status-pill";
+            }
+
+            debugEl.textContent =
+                `보정 sin(θ): ${formatSignedFixed(calibratedSinTheta, 5)} | 배율: ${scaleFactor.toFixed(2)} | OS: ${(selectedOS || "-").toUpperCase()}`;
+        }
+
+        function switchTab(tabName) {
+            ["measure", "zero", "scale"].forEach(name => {
+                document.getElementById("tab-" + name).classList.toggle("active", name === tabName);
+                document.getElementById("panel-" + name).classList.toggle("hidden", name !== tabName);
+            });
+        }
+
+        function setZeroCalibration() {
+            zeroSinTheta = rawSinTheta;
+            emaFast = 0.0;
+            emaSlow = 0.0;
+            filteredCantMm = 0.0;
+            recentSamples.length = 0;
+            isStable = false;
+            savePreferences();
+            updateZeroUI();
+            updateCantUI();
+            showNotice("zero-msg", `영점 설정 완료: 현재 기울기(${formatSignedFixed(zeroSinTheta, 5)})가 0.0mm 기준으로 저장되었습니다.`);
+        }
+
+        function resetZeroCalibration() {
+            zeroSinTheta = 0.0;
+            recentSamples.length = 0;
+            savePreferences();
+            updateZeroUI();
+            updateCantUI();
+            showNotice("zero-msg", "영점 기준값이 0.00000으로 초기화되었습니다.");
+        }
+
+        function updateZeroUI() {
+            document.getElementById("zero-offset-display").textContent = formatSignedFixed(zeroSinTheta, 5);
+        }
+
+        function onScaleSliderChange(val) {
+            scaleFactor = parseFloat(val);
+            recentSamples.length = 0;
+            savePreferences();
+            syncScaleUI();
+            updateCantUI();
+        }
+
+        function syncScaleUI() {
+            document.getElementById("scale-slider").value = scaleFactor.toFixed(2);
+            document.getElementById("scale-value-display").textContent = scaleFactor.toFixed(2);
+        }
+
+        function autoCalibrate20mm() {
+            const unscaledCant = RAIL_GAUGE_MM * calibratedSinTheta;
+            if (Math.abs(unscaledCant) < 0.8) {
+                showNotice("scale-msg", "기울기 변화가 작습니다. 1,800mm 수평계 스마트폰 쪽 끝단에 20mm 블록을 올려놓고 1~2초 뒤 다시 눌러주세요.");
+                return;
+            }
+
+            if (unscaledCant < 0) {
+                signPolarity *= -1;
+                calibratedSinTheta = (signPolarity * Math.abs(rawSinTheta)) - zeroSinTheta;
+            }
+
+            const denom = Math.abs(RAIL_GAUGE_MM * calibratedSinTheta);
+            let nextScale = TARGET_CANT_MM / denom;
+            nextScale = Math.max(0.20, Math.min(3.00, nextScale));
+            scaleFactor = Number(nextScale.toFixed(2));
+
+            emaFast = TARGET_CANT_MM;
+            emaSlow = TARGET_CANT_MM;
+            filteredCantMm = TARGET_CANT_MM;
+            recentSamples.length = 0;
+            for (let i = 0; i < SAMPLE_WINDOW; i++) recentSamples.push(TARGET_CANT_MM);
+            isStable = true;
+
+            savePreferences();
+            syncScaleUI();
+            updateCantUI();
+            showNotice("scale-msg", `20mm 블록 자동 보정 완료: 1,435mm 환산 이론값 +15.9mm(+15.94mm) 기준으로 배율이 ${scaleFactor.toFixed(2)}로 설정되었습니다.`);
+        }
+
+        function captureCheck(mode) {
+            const val = Number(filteredCantMm.toFixed(1));
+            if (mode === "pos") {
+                checkPositiveMm = val;
+            } else {
+                checkNegativeMm = val;
+            }
+
+            const posText = checkPositiveMm !== null ? formatSignedTenths(checkPositiveMm) + "mm" : "미기록";
+            const negText = checkNegativeMm !== null ? formatSignedTenths(checkNegativeMm) + "mm" : "미기록";
+
+            let summary = `정방향(+20mm): ${posText} / 반대편(-20mm): ${negText}`;
+            if (checkPositiveMm !== null && checkNegativeMm !== null) {
+                const avgAbs = ((Math.abs(checkPositiveMm) + Math.abs(checkNegativeMm)) / 2).toFixed(1);
+                const diffSum = (checkPositiveMm + checkNegativeMm).toFixed(1);
+                summary += ` | 평균 절대값: ${avgAbs}mm (이론 15.9mm), 부호 합계: ${diffSum}mm (0.0mm 이상적)`;
+            }
+            showNotice("scale-msg", summary);
+        }
+
+        function flipSignPolarity() {
+            signPolarity *= -1;
+            recentSamples.length = 0;
+            savePreferences();
+            updateCantUI();
+            showNotice("scale-msg", `부호 방향이 반전되었습니다. 현재 설정: ${signPolarity < 0 ? "스마트폰 쪽 레일 高 = +" : "스마트폰 쪽 레일 高 = -"}`);
+        }
+
+        function resetScaleDefault() {
+            scaleFactor = 1.00;
+            recentSamples.length = 0;
+            savePreferences();
+            syncScaleUI();
+            updateCantUI();
+            showNotice("scale-msg", "감도 배율이 1.00으로 초기화되었습니다.");
+        }
+
+        function saveCantRecord() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, "0");
+            const dd = String(now.getDate()).padStart(2, "0");
+            const HH = String(now.getHours()).padStart(2, "0");
+            const MM = String(now.getMinutes()).padStart(2, "0");
+            const SS = String(now.getSeconds()).padStart(2, "0");
+
+            const record = {
+                id: Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                date: `${yyyy}-${mm}-${dd}`,
+                time: `${HH}:${MM}:${SS}`,
+                cant: formatSignedTenths(filteredCantMm)
+            };
+
+            records.unshift(record);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            renderRecords();
+            showNotice("measure-msg", `저장 완료: ${record.date} ${record.time} → ${record.cant} mm`);
+        }
+
+        function deleteRecordById(id) {
+            records = records.filter(item => item.id !== id);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            renderRecords();
+        }
+
+        function clearAllRecords() {
+            if (!records.length) return;
+            records = [];
+            localStorage.removeItem(STORAGE_KEY);
+            renderRecords();
+            showNotice("measure-msg", "저장된 모든 캔트 기록이 삭제되었습니다.");
+        }
+
+        function renderRecords() {
+            const listEl = document.getElementById("history-list");
+            if (!records.length) {
+                listEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:16px; font-size:0.86rem;">저장된 캔트값이 없습니다.</div>`;
+                return;
+            }
+
+            listEl.innerHTML = "";
+            const total = records.length;
+
+            records.forEach((rec, idx) => {
+                const seq = total - idx;
+                const wrapper = document.createElement("div");
+                wrapper.className = "history-item-wrapper";
+
+                const delBg = document.createElement("div");
+                delBg.className = "delete-bg";
+                delBg.textContent = "삭제";
+
+                const item = document.createElement("div");
+                item.className = "history-item";
+                item.innerHTML = `
+                    <div>
+                        <div style="font-weight:700; font-size:0.92rem;">#${seq} / ${rec.date} / ${rec.time}</div>
+                        <div class="history-meta">좌측 스와이프로 삭제</div>
+                    </div>
+                    <div class="history-cant">${rec.cant} mm</div>
+                `;
+
+                let startX = 0;
+                let currentX = 0;
+                let dragging = false;
+
+                item.addEventListener("touchstart", e => {
+                    startX = e.touches[0].clientX;
+                    currentX = 0;
+                    dragging = true;
+                    item.style.transition = "none";
+                }, { passive: true });
+
+                item.addEventListener("touchmove", e => {
+                    if (!dragging) return;
+                    const dx = e.touches[0].clientX - startX;
+                    if (dx < 0) {
+                        currentX = Math.max(dx, -120);
+                        item.style.transform = `translateX(${currentX}px)`;
+                    }
+                }, { passive: true });
+
+                item.addEventListener("touchend", () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    item.style.transition = "transform 0.15s ease";
+                    if (currentX < -65) {
+                        item.style.transform = "translateX(-100%)";
+                        setTimeout(() => deleteRecordById(rec.id), 140);
+                    } else {
+                        item.style.transform = "translateX(0px)";
+                    }
+                });
+
+                wrapper.appendChild(delBg);
+                wrapper.appendChild(item);
+                listEl.appendChild(wrapper);
+            });
+        }
+
+        function showNotice(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove("hidden");
+        }
+
+        loadPreferences();
+    </script>
+</body>
+</html>
